@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>12</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Platforms>x64</Platforms>
+    <AssemblyName>RamProfilePlacer.Addin</AssemblyName>
+    <RootNamespace>RamProfilePlacer.Addin</RootNamespace>
+    <UseWPF>true</UseWPF>
+    <!-- Не копировать Revit DLL в выходную папку -->
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <!--
+    Revit API DLL — указываем путь к установленному Revit 2026.
+    Если установка нестандартная, скорректируйте RevitInstallPath ниже
+    или передайте его через: dotnet build /p:RevitInstallPath="C:\Revit2026"
+  -->
+  <PropertyGroup>
+    <RevitInstallPath Condition="'$(RevitInstallPath)' == ''">C:\Program Files\Autodesk\Revit 2026</RevitInstallPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="RevitAPI">
+      <HintPath>$(RevitInstallPath)\RevitAPI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="RevitAPIUI">
+      <HintPath>$(RevitInstallPath)\RevitAPIUI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RamProfilePlacer.Core\RamProfilePlacer.Core.csproj" />
+  </ItemGroup>
+
+</Project>

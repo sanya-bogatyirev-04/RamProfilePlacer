@@ -1,0 +1,40 @@
+name: CI — Build & Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Build Core & Run Tests
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # Core и Tests не зависят от Revit API — собираем только их
+      - name: Restore Core
+        run: dotnet restore src/RamProfilePlacer.Core/RamProfilePlacer.Core.csproj
+
+      - name: Build Core
+        run: dotnet build src/RamProfilePlacer.Core/RamProfilePlacer.Core.csproj --configuration Release --no-restore
+
+      - name: Restore Tests
+        run: dotnet restore src/RamProfilePlacer.Tests/RamProfilePlacer.Tests.csproj
+
+      - name: Build Tests
+        run: dotnet build src/RamProfilePlacer.Tests/RamProfilePlacer.Tests.csproj --configuration Release --no-restore
+
+      - name: Run xUnit Tests
+        run: dotnet test src/RamProfilePlacer.Tests/RamProfilePlacer.Tests.csproj --configuration Release --no-build --verbosity normal
+
+  # Addin требует Revit DLL — собирается только локально
+  # Инструкции по сборке Addin — в README.md
