@@ -150,8 +150,8 @@ public sealed class PlaceProfilesCommand : IExternalCommand
         var status = tx.Commit();
         if (status != TransactionStatus.Committed)
         {
-            logger.Error($"Transaction not committed: status={status}. Rolling back.");
-            if (tx.HasStarted()) tx.RollBack();
+            // После неудачного Commit Revit автоматически откатывает транзакцию.
+            logger.Error($"Transaction not committed: status={status}.");
             throw new InvalidOperationException("Не удалось сохранить изменения, операция отменена.");
         }
 
@@ -180,7 +180,7 @@ public sealed class PlaceProfilesCommand : IExternalCommand
             ?? throw new InvalidOperationException($"Cannot get location point for opening {opening.Id}.");
 
         // Размеры внутреннего проёма
-        var dims = WallFaceReader.GetOpeningDimensions(face, openingLocation, opening, out bool usedFallback);
+        var dims = WallFaceReader.GetOpeningDimensions(face, openingLocation, opening, out bool usedFallback, logger);
 
         if (usedFallback)
         {

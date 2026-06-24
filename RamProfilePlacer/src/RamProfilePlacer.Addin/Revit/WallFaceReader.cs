@@ -40,7 +40,8 @@ internal static class WallFaceReader
         Face face,
         XYZ openingLocation,
         FamilyInstance opening,
-        out bool usedFallback)
+        out bool usedFallback,
+        Infrastructure.FileLogger? logger = null)
     {
         usedFallback = false;
 
@@ -52,14 +53,16 @@ internal static class WallFaceReader
             }
             catch (Exception ex)
             {
-                // Переход на запасной путь
                 usedFallback = true;
-                _ = ex; // подавляем предупреждение
+                logger?.Warn(
+                    $"  EdgeLoop analysis failed for ElementId={opening.Id}, switching to family-parameter fallback. " +
+                    $"Reason: {ex.GetType().Name}: {ex.Message}");
             }
         }
         else
         {
             usedFallback = true;
+            logger?.Warn($"  Face is not PlanarFace (type={face.GetType().Name}) for ElementId={opening.Id}, using fallback.");
         }
 
         // Запасной путь — параметры семейства
@@ -120,17 +123,23 @@ internal static class WallFaceReader
 
     private static OpeningDimensions GetDimensionsFromFamilyParameters(FamilyInstance fi)
     {
-        // Параметры описывают наружный проём (меньше внутреннего из-за четвертей) — запасной путь
+        // Параметры описывают наружный проём (меньше внутреннего из-за четвертей) — запасной путь.
+        // WINDOW_WIDTH/HEIGHT и DOOR_WIDTH/HEIGHT — параметры типа (type parameters), поэтому
+        // читаем их из fi.Symbol, а не из экземпляра fi (у которого они возвращают null).
         double width = 0, height = 0;
 
-        var wp = fi.LookupParameter("WINDOW_WIDTH") ?? fi.get_Parameter(BuiltInParameter.WINDOW_WIDTH);
-        var hp = fi.LookupParameter("WINDOW_HEIGHT") ?? fi.get_Parameter(BuiltInParameter.WINDOW_HEIGHT);
+        var wp = fi.Symbol.get_Parameter(BuiltInParameter.WINDOW_WIDTH)
+                 ?? fi.Symbol.LookupParameter("WINDOW_WIDTH");
+        var hp = fi.Symbol.get_Parameter(BuiltInParameter.WINDOW_HEIGHT)
+                 ?? fi.Symbol.LookupParameter("WINDOW_HEIGHT");
 
         if (wp == null || hp == null)
         {
             // Двери
-            wp = fi.LookupParameter("DOOR_WIDTH") ?? fi.get_Parameter(BuiltInParameter.DOOR_WIDTH);
-            hp = fi.LookupParameter("DOOR_HEIGHT") ?? fi.get_Parameter(BuiltInParameter.DOOR_HEIGHT);
+            wp = fi.Symbol.get_Parameter(BuiltInParameter.DOOR_WIDTH)
+                 ?? fi.Symbol.LookupParameter("DOOR_WIDTH");
+            hp = fi.Symbol.get_Parameter(BuiltInParameter.DOOR_HEIGHT)
+                 ?? fi.Symbol.LookupParameter("DOOR_HEIGHT");
         }
 
         if (wp != null) width = wp.AsDouble();
