@@ -46,7 +46,7 @@ internal static class FamilyPlacer
 
         if (fi == null)
         {
-            FileLogger.Instance.Warn($"NewFamilyInstance returned null for side {placement.Side}.");
+            FileLogger.Instance.Warn($"NewFamilyInstance вернул null для стороны {placement.Side}.");
             return null;
         }
 
@@ -64,15 +64,15 @@ internal static class FamilyPlacer
         if (param == null)
         {
             FileLogger.Instance.Warn(
-                $"Parameter '{paramName}' not found in family '{fi.Symbol.Family.Name}'. " +
-                $"Value not set.");
+                $"Параметр '{paramName}' не найден в семействе '{fi.Symbol.Family.Name}'. " +
+                $"Значение не установлено.");
             return;
         }
 
         if (param.IsReadOnly)
         {
             FileLogger.Instance.Warn(
-                $"Parameter '{paramName}' is read-only in family '{fi.Symbol.Family.Name}'.");
+                $"Параметр '{paramName}' доступен только для чтения в семействе '{fi.Symbol.Family.Name}'.");
             return;
         }
 

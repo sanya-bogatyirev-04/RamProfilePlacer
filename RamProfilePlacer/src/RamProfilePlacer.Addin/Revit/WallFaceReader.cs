@@ -55,14 +55,14 @@ internal static class WallFaceReader
             {
                 usedFallback = true;
                 logger?.Warn(
-                    $"  EdgeLoop analysis failed for ElementId={opening.Id}, switching to family-parameter fallback. " +
-                    $"Reason: {ex.GetType().Name}: {ex.Message}");
+                    $"  Анализ EdgeLoops не удался для ElementId={opening.Id}, переход на запасной путь. " +
+                    $"Причина: {ex.GetType().Name}: {ex.Message}");
             }
         }
         else
         {
             usedFallback = true;
-            logger?.Warn($"  Face is not PlanarFace (type={face.GetType().Name}) for ElementId={opening.Id}, using fallback.");
+            logger?.Warn($"  Грань не является PlanarFace (тип={face.GetType().Name}) для ElementId={opening.Id}, используется запасной путь.");
         }
 
         // Запасной путь — параметры семейства

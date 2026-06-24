@@ -48,14 +48,14 @@ public sealed class Application : IExternalApplication
         }
         catch (Exception ex)
         {
-            Infrastructure.FileLogger.Instance.Error("OnStartup failed.", ex);
+            Infrastructure.FileLogger.Instance.Error("Ошибка при запуске плагина (OnStartup).", ex);
             return Result.Failed;
         }
     }
 
     public Result OnShutdown(UIControlledApplication application)
     {
-        Infrastructure.FileLogger.Instance.Info("Plugin shutdown.");
+        Infrastructure.FileLogger.Instance.Info("Плагин выгружен.");
         return Result.Succeeded;
     }
 

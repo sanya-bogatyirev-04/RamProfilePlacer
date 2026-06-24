@@ -16,7 +16,7 @@ public sealed class PlaceProfilesCommand : IExternalCommand
     public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
     {
         var logger = FileLogger.Instance;
-        logger.Info("=== PlaceProfilesCommand started ===");
+        logger.Info("=== Команда PlaceProfilesCommand запущена ===");
 
         UIDocument uidoc = commandData.Application.ActiveUIDocument;
         Document doc = uidoc.Document;
@@ -30,7 +30,7 @@ public sealed class PlaceProfilesCommand : IExternalCommand
                 TaskDialog.Show("РАМ — Профили",
                     "В модели не загружено ни одного семейства категории «Обобщённые модели» " +
                     "с типом размещения WorkPlaneBased.\n\nЗагрузите семейство профиля и повторите.");
-                logger.Warn("No suitable family symbols found.");
+                logger.Warn("Подходящие символы семейств не найдены.");
                 return Result.Cancelled;
             }
 
@@ -38,12 +38,12 @@ public sealed class PlaceProfilesCommand : IExternalCommand
             var dialog = new ProfileSelectDialog(symbols);
             if (dialog.ShowDialog() != true || dialog.SelectedSymbol == null)
             {
-                logger.Info("User cancelled family selection.");
+                logger.Info("Пользователь отменил выбор семейства.");
                 return Result.Cancelled;
             }
 
             FamilySymbol profileSymbol = dialog.SelectedSymbol;
-            logger.Info($"Selected family: '{profileSymbol.Family.Name}', type: '{profileSymbol.Name}' " +
+            logger.Info($"Выбрано семейство: '{profileSymbol.Family.Name}', тип: '{profileSymbol.Name}' " +
                         $"(ElementId={profileSymbol.Id})");
 
             // 3. Выбор проёмов в модели
@@ -57,23 +57,23 @@ public sealed class PlaceProfilesCommand : IExternalCommand
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
             {
-                logger.Info("User cancelled opening selection.");
+                logger.Info("Пользователь отменил выбор проёмов.");
                 return Result.Cancelled;
             }
 
             if (selectedRefs.Count == 0)
             {
-                logger.Info("No openings selected.");
+                logger.Info("Проёмы не выбраны.");
                 return Result.Cancelled;
             }
 
-            logger.Info($"Selected {selectedRefs.Count} openings.");
+            logger.Info($"Выбрано проёмов: {selectedRefs.Count}.");
 
             // 4. Обработка проёмов и размещение профилей
             var report = ProcessOpenings(doc, selectedRefs, profileSymbol, logger);
 
             // 5. Итоговый отчёт
-            logger.Info($"=== PlaceProfilesCommand finished: placed={report.PlacedCount}, skipped={report.SkippedCount} ===");
+            logger.Info($"=== Команда завершена: размещено={report.PlacedCount}, пропущено={report.SkippedCount} ===");
 
             string reportText = BuildReportText(report);
             TaskDialog.Show("РАМ — Профили: результат", reportText);
@@ -82,7 +82,7 @@ public sealed class PlaceProfilesCommand : IExternalCommand
         }
         catch (Exception ex)
         {
-            logger.Error("Unhandled exception in PlaceProfilesCommand.", ex);
+            logger.Error("Необработанное исключение в PlaceProfilesCommand.", ex);
             message = ex.Message;
             return Result.Failed;
         }
@@ -126,24 +126,24 @@ public sealed class PlaceProfilesCommand : IExternalCommand
                 continue;
             }
 
-            logger.Info($"Processing opening ElementId={opening.Id}, category={opening.Category?.Name}");
+            logger.Info($"Обработка проёма ElementId={opening.Id}, категория={opening.Category?.Name}");
 
             try
             {
                 int placed = PlaceProfilesForOpening(doc, opening, profileSymbol, logger);
                 report.AddPlaced(opening.Id, placed);
-                logger.Info($"  → Placed {placed} profiles for ElementId={opening.Id}.");
+                logger.Info($"  → Размещено профилей: {placed} для ElementId={opening.Id}.");
             }
             catch (NotSupportedException ex)
             {
                 // Дуговая стена и т.п. — пропускаем, не прерываем обработку
                 report.AddSkipped(opening.Id, ex.Message);
-                logger.Warn($"  → Skipped ElementId={opening.Id}: {ex.Message}");
+                logger.Warn($"  → Пропущен ElementId={opening.Id}: {ex.Message}");
             }
             catch (Exception ex)
             {
                 report.AddSkipped(opening.Id, $"Ошибка: {ex.Message}");
-                logger.Error($"  → Error processing ElementId={opening.Id}.", ex);
+                logger.Error($"  → Ошибка при обработке ElementId={opening.Id}.", ex);
             }
         }
 
@@ -151,7 +151,7 @@ public sealed class PlaceProfilesCommand : IExternalCommand
         if (status != TransactionStatus.Committed)
         {
             // После неудачного Commit Revit автоматически откатывает транзакцию.
-            logger.Error($"Transaction not committed: status={status}.");
+            logger.Error($"Транзакция не зафиксирована: status={status}.");
             throw new InvalidOperationException("Не удалось сохранить изменения, операция отменена.");
         }
 
@@ -184,8 +184,8 @@ public sealed class PlaceProfilesCommand : IExternalCommand
 
         if (usedFallback)
         {
-            logger.Warn($"  Fallback used for ElementId={opening.Id}. " +
-                        "Sizes taken from family parameters — please verify manually.");
+            logger.Warn($"  Для ElementId={opening.Id} использован запасной путь. " +
+                        "Размеры взяты из параметров семейства — рекомендуется проверить вручную.");
         }
 
         // Тип: дверь или окно?
