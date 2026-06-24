@@ -456,15 +456,15 @@ OpeningDimensions (IsExact = false)
 Пример лог-файла:
 
 ```
-[10:15:32.441] [INFO] === PlaceProfilesCommand started ===
-[10:15:33.012] [INFO] Selected family: 'Профиль_Откос', type: '70мм' (ElementId=123456)
-[10:15:33.104] [INFO] Processing opening ElementId=234567, category=Окна
-[10:15:33.201] [INFO]   → Placed 4 profiles for ElementId=234567.
-[10:15:33.310] [INFO] Processing opening ElementId=345678, category=Двери
-[10:15:33.311] [WARN]   EdgeLoop analysis failed for ElementId=345678, switching to family-parameter fallback. Reason: InvalidOperationException: Not enough loops to identify opening (need at least 2).
-[10:15:33.318] [WARN]   Fallback used for ElementId=345678. Sizes taken from family parameters — please verify manually.
-[10:15:33.325] [INFO]   → Placed 3 profiles for ElementId=345678.
-[10:15:33.350] [INFO] === PlaceProfilesCommand finished: placed=7, skipped=0 ===
+[10:15:32.441] [INFO] === Команда PlaceProfilesCommand запущена ===
+[10:15:33.012] [INFO] Выбрано семейство: 'Профиль_Откос', тип: '70мм' (ElementId=123456)
+[10:15:33.104] [INFO] Обработка проёма ElementId=234567, категория=Окна
+[10:15:33.201] [INFO]   → Размещено профилей: 4 для ElementId=234567.
+[10:15:33.310] [INFO] Обработка проёма ElementId=345678, категория=Двери
+[10:15:33.311] [WARN]   Анализ EdgeLoops не удался для ElementId=345678, переход на запасной путь. Причина: InvalidOperationException: Not enough loops to identify opening (need at least 2).
+[10:15:33.318] [WARN]   Для ElementId=345678 использован запасной путь. Размеры взяты из параметров семейства — рекомендуется проверить вручную.
+[10:15:33.325] [INFO]   → Размещено профилей: 3 для ElementId=345678.
+[10:15:33.350] [INFO] === Команда завершена: размещено=7, пропущено=0 ===
 ```
 
 ---
