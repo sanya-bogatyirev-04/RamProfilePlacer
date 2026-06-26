@@ -1,4 +1,3 @@
-using Autodesk.Revit.Exceptions;
 using Autodesk.Revit.UI;
 using RamProfilePlacer.Addin.Commands;
 
@@ -20,9 +19,9 @@ public sealed class Application : IExternalApplication
     {
         try
         {
-            // Вкладка
+            // Вкладка (CreateRibbonTab бросает ArgumentException, если вкладка уже существует)
             try { application.CreateRibbonTab(TabName); }
-            catch (InvalidOperationException) { /* Вкладка уже существует */ }
+            catch (Autodesk.Revit.Exceptions.ArgumentException) { }
 
             // Панель
             RibbonPanel panel = GetOrCreatePanel(application, TabName, PanelName);

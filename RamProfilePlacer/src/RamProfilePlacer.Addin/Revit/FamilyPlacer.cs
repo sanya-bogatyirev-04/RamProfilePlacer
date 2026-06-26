@@ -23,10 +23,6 @@ internal static class FamilyPlacer
         Reference faceRef,
         ProfilePlacement placement)
     {
-        // Активируем символ, если не активирован
-        if (!profileSymbol.IsActive)
-            profileSymbol.Activate();
-
         // Переводим Core.Point3D → Revit XYZ
         var location = new XYZ(
             placement.InsertionPoint.X,

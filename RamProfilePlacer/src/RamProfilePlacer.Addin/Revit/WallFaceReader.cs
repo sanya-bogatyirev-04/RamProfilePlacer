@@ -14,17 +14,15 @@ internal static class WallFaceReader
     /// Возвращает внутреннюю грань стены и её исходную Reference.
     /// ВАЖНО: faceRef — исходная ссылка из GetSideFaces, нужна для NewFamilyInstance.
     /// </summary>
-    public static (Face face, Reference faceRef) GetInteriorFace(Wall wall)
+    public static (Face? face, Reference faceRef) GetInteriorFace(Wall wall)
     {
         IList<Reference> refs = HostObjectUtils.GetSideFaces(wall, ShellLayerType.Interior);
         if (refs == null || refs.Count == 0)
             throw new InvalidOperationException($"Wall {wall.Id} has no interior side faces.");
 
-        Reference faceRef = refs[0]; // сохраняем исходную ссылку
-        Face face = wall.GetGeometryObjectFromReference(faceRef) as Face
-            ?? throw new InvalidOperationException($"Cannot get Face from reference for wall {wall.Id}.");
+        Reference faceRef = refs[0];
+        Face? face = wall.GetGeometryObjectFromReference(faceRef) as Face;
 
-        // ВНИМАНИЕ: face.Reference == null — для NewFamilyInstance нужен именно faceRef
         return (face, faceRef);
     }
 
@@ -37,7 +35,7 @@ internal static class WallFaceReader
     /// <param name="usedFallback">true если использован запасной путь.</param>
     /// <returns>OpeningDimensions с 3D-углами в футах.</returns>
     public static OpeningDimensions GetOpeningDimensions(
-        Face face,
+        Face? face,
         XYZ openingLocation,
         FamilyInstance opening,
         out bool usedFallback,
@@ -62,11 +60,14 @@ internal static class WallFaceReader
         else
         {
             usedFallback = true;
-            logger?.Warn($"  Грань не является PlanarFace (тип={face.GetType().Name}) для ElementId={opening.Id}, используется запасной путь.");
+            if (face == null)
+                logger?.Warn($"  Грань равна null для ElementId={opening.Id}, используется запасной путь.");
+            else
+                logger?.Warn($"  Грань не является PlanarFace (тип={face.GetType().Name}) для ElementId={opening.Id}, используется запасной путь.");
         }
 
-        // Запасной путь — параметры семейства
-        return GetDimensionsFromFamilyParameters(opening);
+        // Запасной путь — параметры семейства; если есть PlanarFace, проецируем на грань
+        return GetDimensionsFromFamilyParameters(opening, face as PlanarFace);
     }
 
     private static OpeningDimensions GetDimensionsFromEdgeLoops(PlanarFace pf, XYZ openingLocation)
@@ -110,22 +111,31 @@ internal static class WallFaceReader
             faceOrigin.Y + faceU.Y * p.U + faceV.Y * p.V,
             faceOrigin.Z + faceU.Z * p.U + faceV.Z * p.V);
 
-        var bl = ToWorld(rect.BottomLeft);
-        var br = ToWorld(rect.BottomRight);
-        var tl = ToWorld(rect.TopLeft);
-        var tr = ToWorld(rect.TopRight);
+        // Определяем углы по мировому Z, а не по MinV/MaxV —
+        // знак YVector грани зависит от ориентации стены и не гарантирован.
+        var corners = new[] { ToWorld(rect.BottomLeft), ToWorld(rect.BottomRight),
+                              ToWorld(rect.TopLeft), ToWorld(rect.TopRight) };
+        var sorted = corners.OrderBy(c => c.Z).ThenBy(c => c.X).ThenBy(c => c.Y).ToArray();
+        var bottomPair = sorted.Take(2).OrderBy(c => DotXY(c, faceU)).ToArray();
+        var topPair = sorted.Skip(2).OrderBy(c => DotXY(c, faceU)).ToArray();
+
+        var bl = bottomPair[0];
+        var br = bottomPair[1];
+        var tl = topPair[0];
+        var tr = topPair[1];
+
+        double width = Distance(bl, br);
+        double height = Distance(bl, tl);
 
         return new OpeningDimensions(
-            rect.Width, rect.Height,
+            width, height,
             bl, br, tl, tr,
             isExact: true);
     }
 
-    private static OpeningDimensions GetDimensionsFromFamilyParameters(FamilyInstance fi)
+    private static OpeningDimensions GetDimensionsFromFamilyParameters(FamilyInstance fi, PlanarFace? pf = null)
     {
-        // Параметры описывают наружный проём (меньше внутреннего из-за четвертей) — запасной путь.
-        // WINDOW_WIDTH/HEIGHT и DOOR_WIDTH/HEIGHT — параметры типа (type parameters), поэтому
-        // читаем их из fi.Symbol, а не из экземпляра fi (у которого они возвращают null).
+        // WINDOW_WIDTH/HEIGHT и DOOR_WIDTH/HEIGHT — параметры типа, читаем из fi.Symbol.
         double width = 0, height = 0;
 
         var wp = fi.Symbol.get_Parameter(BuiltInParameter.WINDOW_WIDTH)
@@ -135,7 +145,6 @@ internal static class WallFaceReader
 
         if (wp == null || hp == null)
         {
-            // Двери
             wp = fi.Symbol.get_Parameter(BuiltInParameter.DOOR_WIDTH)
                  ?? fi.Symbol.LookupParameter("DOOR_WIDTH");
             hp = fi.Symbol.get_Parameter(BuiltInParameter.DOOR_HEIGHT)
@@ -148,25 +157,38 @@ internal static class WallFaceReader
         if (width < 1e-9 || height < 1e-9)
             throw new InvalidOperationException("Cannot determine opening dimensions from family parameters.");
 
-        // Вычисляем угловые точки из точки вставки и трансформации
         var transform = fi.GetTransform();
         XYZ loc = (fi.Location as LocationPoint)?.Point ?? XYZ.Zero;
 
-        // Строим приближённые углы от центра проёма
         XYZ right = transform.BasisX;
         XYZ up = XYZ.BasisZ;
 
         XYZ center = loc;
         XYZ halfW = right * (width / 2.0);
 
+        XYZ blXYZ = center - halfW;
+        XYZ brXYZ = center + halfW;
+        XYZ tlXYZ = center - halfW + up * height;
+        XYZ trXYZ = center + halfW + up * height;
+
+        // Проецируем углы на плоскость внутренней грани, если она доступна —
+        // NewFamilyInstance(Reference, location, …) ожидает точку на грани.
+        if (pf != null)
+        {
+            XYZ faceOrigin = pf.Origin;
+            XYZ faceNormal = pf.FaceNormal;
+            blXYZ = ProjectOnPlane(blXYZ, faceOrigin, faceNormal);
+            brXYZ = ProjectOnPlane(brXYZ, faceOrigin, faceNormal);
+            tlXYZ = ProjectOnPlane(tlXYZ, faceOrigin, faceNormal);
+            trXYZ = ProjectOnPlane(trXYZ, faceOrigin, faceNormal);
+        }
+
         Point3D ToCore(XYZ p) => new(p.X, p.Y, p.Z);
 
         return new OpeningDimensions(
             width, height,
-            ToCore(center - halfW),
-            ToCore(center + halfW),
-            ToCore(center - halfW + up * height),
-            ToCore(center + halfW + up * height),
+            ToCore(blXYZ), ToCore(brXYZ),
+            ToCore(tlXYZ), ToCore(trXYZ),
             isExact: false);
     }
 
@@ -191,4 +213,10 @@ internal static class WallFaceReader
         var diff = projected - origin;
         return new Point2D(diff.DotProduct(axisU), diff.DotProduct(axisV));
     }
+
+    private static double DotXY(Point3D p, XYZ axis) =>
+        p.X * axis.X + p.Y * axis.Y + p.Z * axis.Z;
+
+    private static double Distance(Point3D a, Point3D b) =>
+        Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y) + (a.Z - b.Z) * (a.Z - b.Z));
 }
