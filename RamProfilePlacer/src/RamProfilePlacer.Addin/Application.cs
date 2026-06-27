@@ -1,4 +1,3 @@
-using Autodesk.Revit.Exceptions;
 using Autodesk.Revit.UI;
 using RamProfilePlacer.Addin.Commands;
 
@@ -18,11 +17,14 @@ public sealed class Application : IExternalApplication
 
     public Result OnStartup(UIControlledApplication application)
     {
+        var logger = Infrastructure.FileLogger.Instance;
+        logger.Info("=== Плагин RamProfilePlacer загружается ===");
+
         try
         {
-            // Вкладка
+            // Вкладка (CreateRibbonTab бросает ArgumentException, если вкладка уже существует)
             try { application.CreateRibbonTab(TabName); }
-            catch (InvalidOperationException) { /* Вкладка уже существует */ }
+            catch (Autodesk.Revit.Exceptions.ArgumentException) { }
 
             // Панель
             RibbonPanel panel = GetOrCreatePanel(application, TabName, PanelName);
@@ -44,6 +46,7 @@ public sealed class Application : IExternalApplication
             };
 
             panel.AddItem(pushButtonData);
+            logger.Info("=== Плагин RamProfilePlacer загружен успешно ===");
             return Result.Succeeded;
         }
         catch (Exception ex)

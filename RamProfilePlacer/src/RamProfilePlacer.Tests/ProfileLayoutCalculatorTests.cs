@@ -108,43 +108,51 @@ public sealed class ProfileLayoutCalculatorTests
     // -------------------------------------------------------------------------
 
     [Fact]
-    public void Calculate_Bottom_InsertionPointIsBottomLeft()
+    public void Calculate_Bottom_InsertionPointIsMidpointOfBottomEdge()
     {
         var dims = MakeDims();
         var placements = ProfileLayoutCalculator.Calculate(dims, isDoor: false);
         var bottom = placements.Single(p => p.Side == OpeningSide.Bottom);
 
-        Assert.Equal(dims.BottomLeft3D, bottom.InsertionPoint);
+        Assert.Equal(1.5, bottom.InsertionPoint.X, precision: 9);
+        Assert.Equal(0.0, bottom.InsertionPoint.Y, precision: 9);
+        Assert.Equal(0.0, bottom.InsertionPoint.Z, precision: 9);
     }
 
     [Fact]
-    public void Calculate_Top_InsertionPointIsTopLeft()
+    public void Calculate_Top_InsertionPointIsMidpointOfTopEdge()
     {
         var dims = MakeDims();
         var placements = ProfileLayoutCalculator.Calculate(dims, isDoor: false);
         var top = placements.Single(p => p.Side == OpeningSide.Top);
 
-        Assert.Equal(dims.TopLeft3D, top.InsertionPoint);
+        Assert.Equal(1.5, top.InsertionPoint.X, precision: 9);
+        Assert.Equal(0.0, top.InsertionPoint.Y, precision: 9);
+        Assert.Equal(2.0, top.InsertionPoint.Z, precision: 9);
     }
 
     [Fact]
-    public void Calculate_Left_InsertionPointIsBottomLeft()
+    public void Calculate_Left_InsertionPointIsMidpointOfLeftEdge()
     {
         var dims = MakeDims();
         var placements = ProfileLayoutCalculator.Calculate(dims, isDoor: false);
         var left = placements.Single(p => p.Side == OpeningSide.Left);
 
-        Assert.Equal(dims.BottomLeft3D, left.InsertionPoint);
+        Assert.Equal(0.0, left.InsertionPoint.X, precision: 9);
+        Assert.Equal(0.0, left.InsertionPoint.Y, precision: 9);
+        Assert.Equal(1.0, left.InsertionPoint.Z, precision: 9);
     }
 
     [Fact]
-    public void Calculate_Right_InsertionPointIsBottomRight()
+    public void Calculate_Right_InsertionPointIsMidpointOfRightEdge()
     {
         var dims = MakeDims();
         var placements = ProfileLayoutCalculator.Calculate(dims, isDoor: false);
         var right = placements.Single(p => p.Side == OpeningSide.Right);
 
-        Assert.Equal(dims.BottomRight3D, right.InsertionPoint);
+        Assert.Equal(3.0, right.InsertionPoint.X, precision: 9);
+        Assert.Equal(0.0, right.InsertionPoint.Y, precision: 9);
+        Assert.Equal(1.0, right.InsertionPoint.Z, precision: 9);
     }
 
     // -------------------------------------------------------------------------
@@ -206,7 +214,7 @@ public sealed class ProfileLayoutCalculatorTests
         var placements = ProfileLayoutCalculator.Calculate(dims, isDoor: false);
 
         var bottom = placements.Single(p => p.Side == OpeningSide.Bottom);
-        Assert.Equal(10.0, bottom.InsertionPoint.X, precision: 9);
+        Assert.Equal(11.0, bottom.InsertionPoint.X, precision: 9);
         Assert.Equal(5.0, bottom.InsertionPoint.Y, precision: 9);
         Assert.Equal(1.0, bottom.InsertionPoint.Z, precision: 9);
     }
@@ -223,6 +231,7 @@ public sealed class ProfileLayoutCalculatorTests
                 OpeningSide.Bottom,
                 new Point3D(0, 0, 0),
                 new Point3D(1, 0, 0),
+                new Point3D(0, 0, 1),
                 length: -1.0));
     }
 

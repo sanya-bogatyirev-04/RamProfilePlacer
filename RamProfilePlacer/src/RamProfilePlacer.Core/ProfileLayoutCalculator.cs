@@ -19,55 +19,55 @@ public static class ProfileLayoutCalculator
     {
         ArgumentNullException.ThrowIfNull(dims);
 
+        // Центр проёма — для направления refDir «внутрь»
+        var center = Midpoint(
+            Midpoint(dims.BottomLeft3D, dims.BottomRight3D),
+            Midpoint(dims.TopLeft3D, dims.TopRight3D));
+
         var placements = new List<ProfilePlacement>();
 
         // --- Bottom (только для окон) ---
         if (!isDoor)
         {
-            // Начало: BottomLeft, направление: к BottomRight, длина: ширина
+            var mid = Midpoint(dims.BottomLeft3D, dims.BottomRight3D);
             var dir = NormalizedDirection(dims.BottomLeft3D, dims.BottomRight3D);
+            var refDir = NormalizedDirection(mid, center);
             placements.Add(new ProfilePlacement(
-                OpeningSide.Bottom,
-                dims.BottomLeft3D,
-                dir,
-                dims.Width));
+                OpeningSide.Bottom, mid, dir, refDir, dims.Width));
         }
 
         // --- Top ---
         {
-            // Начало: TopLeft, направление: к TopRight, длина: ширина
+            var mid = Midpoint(dims.TopLeft3D, dims.TopRight3D);
             var dir = NormalizedDirection(dims.TopLeft3D, dims.TopRight3D);
+            var refDir = NormalizedDirection(mid, center);
             placements.Add(new ProfilePlacement(
-                OpeningSide.Top,
-                dims.TopLeft3D,
-                dir,
-                dims.Width));
+                OpeningSide.Top, mid, dir, refDir, dims.Width));
         }
 
         // --- Left ---
         {
-            // Начало: BottomLeft, направление: к TopLeft, длина: высота
+            var mid = Midpoint(dims.BottomLeft3D, dims.TopLeft3D);
             var dir = NormalizedDirection(dims.BottomLeft3D, dims.TopLeft3D);
+            var refDir = NormalizedDirection(mid, center);
             placements.Add(new ProfilePlacement(
-                OpeningSide.Left,
-                dims.BottomLeft3D,
-                dir,
-                dims.Height));
+                OpeningSide.Left, mid, dir, refDir, dims.Height));
         }
 
         // --- Right ---
         {
-            // Начало: BottomRight, направление: к TopRight, длина: высота
+            var mid = Midpoint(dims.BottomRight3D, dims.TopRight3D);
             var dir = NormalizedDirection(dims.BottomRight3D, dims.TopRight3D);
+            var refDir = NormalizedDirection(mid, center);
             placements.Add(new ProfilePlacement(
-                OpeningSide.Right,
-                dims.BottomRight3D,
-                dir,
-                dims.Height));
+                OpeningSide.Right, mid, dir, refDir, dims.Height));
         }
 
         return placements;
     }
+
+    private static Point3D Midpoint(Point3D a, Point3D b) =>
+        new((a.X + b.X) / 2.0, (a.Y + b.Y) / 2.0, (a.Z + b.Z) / 2.0);
 
     private static Point3D NormalizedDirection(Point3D from, Point3D to)
     {

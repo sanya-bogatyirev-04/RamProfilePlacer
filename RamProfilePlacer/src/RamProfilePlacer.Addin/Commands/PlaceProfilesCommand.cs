@@ -1,3 +1,4 @@
+using System.Windows.Interop;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -18,12 +19,19 @@ public sealed class PlaceProfilesCommand : IExternalCommand
         var logger = FileLogger.Instance;
         logger.Info("=== Команда PlaceProfilesCommand запущена ===");
 
-        UIDocument uidoc = commandData.Application.ActiveUIDocument;
+        UIApplication uiApp = commandData.Application;
+        UIDocument? uidoc = uiApp.ActiveUIDocument;
+        if (uidoc == null)
+        {
+            TaskDialog.Show("РАМ — Профили", "Нет открытого документа.");
+            return Result.Cancelled;
+        }
+
         Document doc = uidoc.Document;
 
         try
         {
-            // 1. Собираем доступные семейства профилей
+            // 1. Собираем доступные семейства профилей (нативная фильтрация по категории)
             var symbols = CollectProfileSymbols(doc);
             if (symbols.Count == 0)
             {
@@ -34,8 +42,9 @@ public sealed class PlaceProfilesCommand : IExternalCommand
                 return Result.Cancelled;
             }
 
-            // 2. Диалог выбора семейства
+            // 2. Диалог выбора семейства (с владельцем = окно Revit)
             var dialog = new ProfileSelectDialog(symbols);
+            new WindowInteropHelper(dialog).Owner = uiApp.MainWindowHandle;
             if (dialog.ShowDialog() != true || dialog.SelectedSymbol == null)
             {
                 logger.Info("Пользователь отменил выбор семейства.");
@@ -94,10 +103,9 @@ public sealed class PlaceProfilesCommand : IExternalCommand
     {
         return new FilteredElementCollector(doc)
             .OfClass(typeof(FamilySymbol))
+            .OfCategory(BuiltInCategory.OST_GenericModel)
             .Cast<FamilySymbol>()
-            .Where(s =>
-                s.Category?.Id.Value == (long)BuiltInCategory.OST_GenericModel &&
-                s.Family.FamilyPlacementType == FamilyPlacementType.WorkPlaneBased)
+            .Where(s => s.Family.FamilyPlacementType == FamilyPlacementType.WorkPlaneBased)
             .ToList();
     }
 
@@ -112,10 +120,16 @@ public sealed class PlaceProfilesCommand : IExternalCommand
         using var tx = new Transaction(doc, "Размещение профилей (РАМ)");
         tx.Start();
 
-        // Подавляем предупреждения Revit
         var failOpts = tx.GetFailureHandlingOptions();
         failOpts.SetFailuresPreprocessor(new WarningSwallower());
         tx.SetFailureHandlingOptions(failOpts);
+
+        // Активируем символ один раз до цикла + Regenerate (best practice Revit API)
+        if (!profileSymbol.IsActive)
+        {
+            profileSymbol.Activate();
+            doc.Regenerate();
+        }
 
         foreach (var r in refs)
         {
@@ -128,20 +142,36 @@ public sealed class PlaceProfilesCommand : IExternalCommand
 
             logger.Info($"Обработка проёма ElementId={opening.Id}, категория={opening.Category?.Name}");
 
+            // SubTransaction на каждый проём: при сбое откатываются только профили этого проёма
+            using var sub = new SubTransaction(doc);
+            sub.Start();
+
             try
             {
                 int placed = PlaceProfilesForOpening(doc, opening, profileSymbol, logger);
-                report.AddPlaced(opening.Id, placed);
-                logger.Info($"  → Размещено профилей: {placed} для ElementId={opening.Id}.");
+
+                if (placed == 0)
+                {
+                    sub.RollBack();
+                    report.AddSkipped(opening.Id, "Не удалось разместить ни одного профиля (NewFamilyInstance вернул null).");
+                    logger.Warn($"  → 0 профилей размещено для ElementId={opening.Id}, откат.");
+                }
+                else
+                {
+                    sub.Commit();
+                    report.AddPlaced(opening.Id, placed);
+                    logger.Info($"  → Размещено профилей: {placed} для ElementId={opening.Id}.");
+                }
             }
             catch (NotSupportedException ex)
             {
-                // Дуговая стена и т.п. — пропускаем, не прерываем обработку
+                sub.RollBack();
                 report.AddSkipped(opening.Id, ex.Message);
                 logger.Warn($"  → Пропущен ElementId={opening.Id}: {ex.Message}");
             }
             catch (Exception ex)
             {
+                sub.RollBack();
                 report.AddSkipped(opening.Id, $"Ошибка: {ex.Message}");
                 logger.Error($"  → Ошибка при обработке ElementId={opening.Id}.", ex);
             }
@@ -150,7 +180,6 @@ public sealed class PlaceProfilesCommand : IExternalCommand
         var status = tx.Commit();
         if (status != TransactionStatus.Committed)
         {
-            // После неудачного Commit Revit автоматически откатывает транзакцию.
             logger.Error($"Транзакция не зафиксирована: status={status}.");
             throw new InvalidOperationException("Не удалось сохранить изменения, операция отменена.");
         }
@@ -164,22 +193,17 @@ public sealed class PlaceProfilesCommand : IExternalCommand
         FamilySymbol profileSymbol,
         FileLogger logger)
     {
-        // Получаем родительскую стену
         var wall = opening.Host as Wall
             ?? throw new InvalidOperationException($"Opening {opening.Id} has no Wall host.");
 
-        // Проверяем, что стена прямая (не дуговая)
         if (wall.Location is not LocationCurve lc || lc.Curve is not Line)
             throw new NotSupportedException("Стена дуговая — размещение профилей не поддерживается, проём пропущен.");
 
-        // Внутренняя грань и её Reference
         var (face, faceRef) = WallFaceReader.GetInteriorFace(wall);
 
-        // Точка вставки проёма
         XYZ openingLocation = (opening.Location as LocationPoint)?.Point
             ?? throw new InvalidOperationException($"Cannot get location point for opening {opening.Id}.");
 
-        // Размеры внутреннего проёма
         var dims = WallFaceReader.GetOpeningDimensions(face, openingLocation, opening, out bool usedFallback, logger);
 
         if (usedFallback)
@@ -188,18 +212,35 @@ public sealed class PlaceProfilesCommand : IExternalCommand
                         "Размеры взяты из параметров семейства — рекомендуется проверить вручную.");
         }
 
-        // Тип: дверь или окно?
-        bool isDoor = opening.Category?.Id.Value == (long)BuiltInCategory.OST_Doors;
+        // Логируем углы проёма
+        logger.Info($"  [ГЕОМЕТРИЯ] Проём ElementId={opening.Id}, IsExact={dims.IsExact}");
+        logger.Info($"    Ширина={dims.Width:F6} фт ({dims.Width * 304.8:F1} мм), Высота={dims.Height:F6} фт ({dims.Height * 304.8:F1} мм)");
+        logger.Info($"    BottomLeft  = ({dims.BottomLeft3D.X:F6}, {dims.BottomLeft3D.Y:F6}, {dims.BottomLeft3D.Z:F6})");
+        logger.Info($"    BottomRight = ({dims.BottomRight3D.X:F6}, {dims.BottomRight3D.Y:F6}, {dims.BottomRight3D.Z:F6})");
+        logger.Info($"    TopLeft     = ({dims.TopLeft3D.X:F6}, {dims.TopLeft3D.Y:F6}, {dims.TopLeft3D.Z:F6})");
+        logger.Info($"    TopRight    = ({dims.TopRight3D.X:F6}, {dims.TopRight3D.Y:F6}, {dims.TopRight3D.Z:F6})");
+        logger.Info($"    OpeningLocation = ({openingLocation.X:F6}, {openingLocation.Y:F6}, {openingLocation.Z:F6})");
 
-        // Раскладка профилей (Core)
+        bool isDoor = opening.Category?.BuiltInCategory == BuiltInCategory.OST_Doors;
+
         var placements = ProfileLayoutCalculator.Calculate(dims, isDoor);
 
-        // Размещение каждого профиля
         int placed = 0;
         foreach (var placement in placements)
         {
+            logger.Info($"  [PLACEMENT] {placement.Side}: insertion=({placement.InsertionPoint.X:F6}, {placement.InsertionPoint.Y:F6}, {placement.InsertionPoint.Z:F6}), " +
+                        $"dir=({placement.Direction.X:F6}, {placement.Direction.Y:F6}, {placement.Direction.Z:F6}), " +
+                        $"refDir=({placement.ReferenceDirection.X:F6}, {placement.ReferenceDirection.Y:F6}, {placement.ReferenceDirection.Z:F6}), " +
+                        $"len={placement.Length:F6} фт ({placement.Length * 304.8:F1} мм)");
+
             var fi = FamilyPlacer.PlaceProfile(doc, profileSymbol, faceRef, placement);
-            if (fi != null) placed++;
+            if (fi != null)
+            {
+                placed++;
+                var loc = (fi.Location as LocationPoint)?.Point;
+                if (loc != null)
+                    logger.Info($"    → Revit разместил: ({loc.X:F6}, {loc.Y:F6}, {loc.Z:F6})");
+            }
         }
 
         return placed;
