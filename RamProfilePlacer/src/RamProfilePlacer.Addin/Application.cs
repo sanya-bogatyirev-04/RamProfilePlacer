@@ -17,6 +17,9 @@ public sealed class Application : IExternalApplication
 
     public Result OnStartup(UIControlledApplication application)
     {
+        var logger = Infrastructure.FileLogger.Instance;
+        logger.Info("=== Плагин RamProfilePlacer загружается ===");
+
         try
         {
             // Вкладка (CreateRibbonTab бросает ArgumentException, если вкладка уже существует)
@@ -43,6 +46,7 @@ public sealed class Application : IExternalApplication
             };
 
             panel.AddItem(pushButtonData);
+            logger.Info("=== Плагин RamProfilePlacer загружен успешно ===");
             return Result.Succeeded;
         }
         catch (Exception ex)

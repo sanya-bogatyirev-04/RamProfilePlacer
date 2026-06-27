@@ -212,6 +212,15 @@ public sealed class PlaceProfilesCommand : IExternalCommand
                         "Размеры взяты из параметров семейства — рекомендуется проверить вручную.");
         }
 
+        // Логируем углы проёма
+        logger.Info($"  [ГЕОМЕТРИЯ] Проём ElementId={opening.Id}, IsExact={dims.IsExact}");
+        logger.Info($"    Ширина={dims.Width:F6} фт ({dims.Width * 304.8:F1} мм), Высота={dims.Height:F6} фт ({dims.Height * 304.8:F1} мм)");
+        logger.Info($"    BottomLeft  = ({dims.BottomLeft3D.X:F6}, {dims.BottomLeft3D.Y:F6}, {dims.BottomLeft3D.Z:F6})");
+        logger.Info($"    BottomRight = ({dims.BottomRight3D.X:F6}, {dims.BottomRight3D.Y:F6}, {dims.BottomRight3D.Z:F6})");
+        logger.Info($"    TopLeft     = ({dims.TopLeft3D.X:F6}, {dims.TopLeft3D.Y:F6}, {dims.TopLeft3D.Z:F6})");
+        logger.Info($"    TopRight    = ({dims.TopRight3D.X:F6}, {dims.TopRight3D.Y:F6}, {dims.TopRight3D.Z:F6})");
+        logger.Info($"    OpeningLocation = ({openingLocation.X:F6}, {openingLocation.Y:F6}, {openingLocation.Z:F6})");
+
         bool isDoor = opening.Category?.BuiltInCategory == BuiltInCategory.OST_Doors;
 
         var placements = ProfileLayoutCalculator.Calculate(dims, isDoor);
@@ -219,8 +228,19 @@ public sealed class PlaceProfilesCommand : IExternalCommand
         int placed = 0;
         foreach (var placement in placements)
         {
+            logger.Info($"  [PLACEMENT] {placement.Side}: insertion=({placement.InsertionPoint.X:F6}, {placement.InsertionPoint.Y:F6}, {placement.InsertionPoint.Z:F6}), " +
+                        $"dir=({placement.Direction.X:F6}, {placement.Direction.Y:F6}, {placement.Direction.Z:F6}), " +
+                        $"refDir=({placement.ReferenceDirection.X:F6}, {placement.ReferenceDirection.Y:F6}, {placement.ReferenceDirection.Z:F6}), " +
+                        $"len={placement.Length:F6} фт ({placement.Length * 304.8:F1} мм)");
+
             var fi = FamilyPlacer.PlaceProfile(doc, profileSymbol, faceRef, placement);
-            if (fi != null) placed++;
+            if (fi != null)
+            {
+                placed++;
+                var loc = (fi.Location as LocationPoint)?.Point;
+                if (loc != null)
+                    logger.Info($"    → Revit разместил: ({loc.X:F6}, {loc.Y:F6}, {loc.Z:F6})");
+            }
         }
 
         return placed;
