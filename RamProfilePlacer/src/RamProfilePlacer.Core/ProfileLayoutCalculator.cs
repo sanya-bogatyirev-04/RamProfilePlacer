@@ -17,7 +17,7 @@ public static class ProfileLayoutCalculator
     /// <returns>Список ProfilePlacement (3 или 4 элемента).</returns>
     public static IReadOnlyList<ProfilePlacement> Calculate(OpeningDimensions dims, bool isDoor)
     {
-        ArgumentNullException.ThrowIfNull(dims);
+        if (dims is null) throw new ArgumentNullException(nameof(dims));
 
         var placements = new List<ProfilePlacement>();
 
