@@ -1,6 +1,3 @@
-# ВНИМАНИЕ: Этот файл находится в неверной папке и НЕ подхватывается GitHub Actions.
-# Актуальный workflow перемещён в: /.github/workflows/ci.yml (корень репозитория).
-
 name: CI — Build & Test
 
 on:
@@ -8,6 +5,10 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main ]
+
+defaults:
+  run:
+    working-directory: RamProfilePlacer
 
 jobs:
   test:
