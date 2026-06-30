@@ -52,49 +52,74 @@
   </ItemGroup>
 
   <!--
-    После каждой сборки разворачивает .addin манифест в папку Revit.
+    После каждой сборки разворачивает .addin манифест в папки Revit.
+    Отдельный таргет для каждой версии — оба выполняются если обе версии установлены.
     Assembly указывает прямо на папку сборки — копировать DLL не нужно.
-    Работает только если Revit установлен (Revit.exe найден).
-    ВАЖНО: используем AfterTargets="Build", а не Name="AfterBuild" —
+    ВАЖНО: AfterTargets="Build", а не Name="AfterBuild" —
     в SDK-стиле стандартное имя AfterBuild переопределяется самим SDK.
+    NOTE: XML-декларация <?xml?> опущена — MSBuild трактует '?' как glob и дропает строку.
+          Revit грузит .addin без неё нормально.
+    NOTE: '&' в Include-значении: ';' внутри '&amp;' — MSBuild трактует как разделитель элементов.
+          Используем 'and' вместо '&' в VendorDescription.
   -->
-  <Target Name="DeployRevitAddinManifest"
+  <Target Name="DeployRevitAddinManifest2024"
           AfterTargets="Build"
-          Condition="Exists('$(RevitInstallPath)\Revit.exe')">
+          Condition="Exists('C:\Program Files\Autodesk\Revit 2024\Revit.exe')">
     <PropertyGroup>
-      <_RevitAddinsDir>$(AppData)\Autodesk\Revit\Addins\$(RevitVersion)</_RevitAddinsDir>
+      <_Addins2024Dir>$(AppData)\Autodesk\Revit\Addins\2024</_Addins2024Dir>
     </PropertyGroup>
-    <MakeDir Directories="$(_RevitAddinsDir)" />
+    <MakeDir Directories="$(_Addins2024Dir)" />
     <ItemGroup>
-      <!-- XML-декларация опущена: MSBuild трактует '?' как glob-маску и дропает строку.
-           Revit грузит .addin без <?xml?> нормально. -->
-      <_AddinLines Include="&lt;RevitAddIns&gt;" />
-      <_AddinLines Include="  &lt;AddIn Type=&quot;Application&quot;&gt;" />
-      <_AddinLines Include="    &lt;Name&gt;RamProfilePlacer&lt;/Name&gt;" />
-      <_AddinLines Include="    &lt;Assembly&gt;$(TargetPath)&lt;/Assembly&gt;" />
-      <_AddinLines Include="    &lt;AddInId&gt;C3F4A6B7-1234-4D5E-9876-ABCDEF012345&lt;/AddInId&gt;" />
-      <_AddinLines Include="    &lt;FullClassName&gt;RamProfilePlacer.Addin.Application&lt;/FullClassName&gt;" />
-      <_AddinLines Include="    &lt;VendorId&gt;RAM_Engineering&lt;/VendorId&gt;" />
-      <!-- '&' в Include-значении: ';' внутри '&amp;' MSBuild трактует как разделитель элементов.
-           Используем 'and' чтобы обойти это ограничение. -->
-      <_AddinLines Include="    &lt;VendorDescription&gt;Rock and Mill (РАМ Инжиниринг), BIM Department&lt;/VendorDescription&gt;" />
-      <_AddinLines Include="  &lt;/AddIn&gt;" />
-      <_AddinLines Include="&lt;/RevitAddIns&gt;" />
+      <_AddinLines2024 Include="&lt;RevitAddIns&gt;" />
+      <_AddinLines2024 Include="  &lt;AddIn Type=&quot;Application&quot;&gt;" />
+      <_AddinLines2024 Include="    &lt;Name&gt;RamProfilePlacer&lt;/Name&gt;" />
+      <_AddinLines2024 Include="    &lt;Assembly&gt;$(TargetPath)&lt;/Assembly&gt;" />
+      <_AddinLines2024 Include="    &lt;AddInId&gt;C3F4A6B7-1234-4D5E-9876-ABCDEF012345&lt;/AddInId&gt;" />
+      <_AddinLines2024 Include="    &lt;FullClassName&gt;RamProfilePlacer.Addin.Application&lt;/FullClassName&gt;" />
+      <_AddinLines2024 Include="    &lt;VendorId&gt;RAM_Engineering&lt;/VendorId&gt;" />
+      <_AddinLines2024 Include="    &lt;VendorDescription&gt;Rock and Mill (РАМ Инжиниринг), BIM Department&lt;/VendorDescription&gt;" />
+      <_AddinLines2024 Include="  &lt;/AddIn&gt;" />
+      <_AddinLines2024 Include="&lt;/RevitAddIns&gt;" />
     </ItemGroup>
     <WriteLinesToFile
-        File="$(_RevitAddinsDir)\RamProfilePlacer.addin"
-        Lines="@(_AddinLines)"
+        File="$(_Addins2024Dir)\RamProfilePlacer.addin"
+        Lines="@(_AddinLines2024)"
         Overwrite="true"
         Encoding="UTF-8" />
-    <Message Text="[RamProfilePlacer] Манифест развёрнут: $(_RevitAddinsDir)\RamProfilePlacer.addin" Importance="high" />
+    <Message Text="[RamProfilePlacer] Манифест развёрнут → Revit 2024: $(_Addins2024Dir)\RamProfilePlacer.addin" Importance="high" />
   </Target>
 
-  <!-- При очистке (Clean) удаляет .addin из папки Revit -->
-  <Target Name="CleanRevitAddinManifest" AfterTargets="Clean">
+  <Target Name="DeployRevitAddinManifest2026"
+          AfterTargets="Build"
+          Condition="Exists('C:\Program Files\Autodesk\Revit 2026\Revit.exe')">
     <PropertyGroup>
-      <_RevitAddinsDir>$(AppData)\Autodesk\Revit\Addins\$(RevitVersion)</_RevitAddinsDir>
+      <_Addins2026Dir>$(AppData)\Autodesk\Revit\Addins\2026</_Addins2026Dir>
     </PropertyGroup>
-    <Delete Files="$(_RevitAddinsDir)\RamProfilePlacer.addin" />
+    <MakeDir Directories="$(_Addins2026Dir)" />
+    <ItemGroup>
+      <_AddinLines2026 Include="&lt;RevitAddIns&gt;" />
+      <_AddinLines2026 Include="  &lt;AddIn Type=&quot;Application&quot;&gt;" />
+      <_AddinLines2026 Include="    &lt;Name&gt;RamProfilePlacer&lt;/Name&gt;" />
+      <_AddinLines2026 Include="    &lt;Assembly&gt;$(TargetPath)&lt;/Assembly&gt;" />
+      <_AddinLines2026 Include="    &lt;AddInId&gt;C3F4A6B7-1234-4D5E-9876-ABCDEF012345&lt;/AddInId&gt;" />
+      <_AddinLines2026 Include="    &lt;FullClassName&gt;RamProfilePlacer.Addin.Application&lt;/FullClassName&gt;" />
+      <_AddinLines2026 Include="    &lt;VendorId&gt;RAM_Engineering&lt;/VendorId&gt;" />
+      <_AddinLines2026 Include="    &lt;VendorDescription&gt;Rock and Mill (РАМ Инжиниринг), BIM Department&lt;/VendorDescription&gt;" />
+      <_AddinLines2026 Include="  &lt;/AddIn&gt;" />
+      <_AddinLines2026 Include="&lt;/RevitAddIns&gt;" />
+    </ItemGroup>
+    <WriteLinesToFile
+        File="$(_Addins2026Dir)\RamProfilePlacer.addin"
+        Lines="@(_AddinLines2026)"
+        Overwrite="true"
+        Encoding="UTF-8" />
+    <Message Text="[RamProfilePlacer] Манифест развёрнут → Revit 2026: $(_Addins2026Dir)\RamProfilePlacer.addin" Importance="high" />
+  </Target>
+
+  <!-- При очистке (Clean) удаляет .addin из обеих папок Revit -->
+  <Target Name="CleanRevitAddinManifest" AfterTargets="Clean">
+    <Delete Files="$(AppData)\Autodesk\Revit\Addins\2024\RamProfilePlacer.addin" />
+    <Delete Files="$(AppData)\Autodesk\Revit\Addins\2026\RamProfilePlacer.addin" />
   </Target>
 
 </Project>

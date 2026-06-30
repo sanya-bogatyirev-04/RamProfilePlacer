@@ -36,6 +36,9 @@ public sealed class PlaceProfilesCommand : IExternalCommand
 
             // 2. Диалог выбора семейства
             var dialog = new ProfileSelectDialog(symbols);
+            // Привязываем к окну Revit, чтобы диалог не уходил за него
+            var helper = new System.Windows.Interop.WindowInteropHelper(dialog);
+            helper.Owner = commandData.Application.MainWindowHandle;
             if (dialog.ShowDialog() != true || dialog.SelectedSymbol == null)
             {
                 logger.Info("Пользователь отменил выбор семейства.");

@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Выбор профиля"
         Width="480" Height="340"
-        WindowStartupLocation="CenterScreen"
+        WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="#F5F5F5">
 
